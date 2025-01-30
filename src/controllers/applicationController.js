@@ -238,6 +238,157 @@
         .json({ message: "Failed to update application status" });
     }
   },
+
+  addTeamMember: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+      const { name, role, image, linkedin } = req.body;
+
+      // Find the application and check ownership
+      const application = await StartupApplication.findOne({ 
+        _id: id, 
+        $or: [
+          { userId },
+          { 'teamMembers.role': 'founder' }
+        ]
+      });
+
+      if (!application) {
+        return res.status(EHttpStatusCode.NOT_FOUND)
+          .json({ message: "Application not found or unauthorized" });
+      }
+
+      // Create new team member object
+      const newTeamMember = {
+        name,
+        role,
+        ...(image && { image }),
+        ...(linkedin && { linkedin })
+      };
+
+      // Add team member and increment team size
+      application.teamMembers.push(newTeamMember);
+      application.teamSize = application.teamMembers.length;
+
+      await application.save();
+
+      return res.status(EHttpStatusCode.SUCCESS).json({
+        message: "Team member added successfully",
+        teamMember: newTeamMember,
+        teamSize: application.teamSize
+      });
+    } catch (error) {
+      console.error("Add team member error:", error);
+      return res.status(EHttpStatusCode.INTERNAL_SERVER)
+        .json({ message: "Failed to add team member" });
+    }
+  },
+
+  // Add Update
+  addUpdate: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+      const { title, content, type, imageUrl } = req.body;
+
+      // Find the application and check ownership
+      const application = await StartupApplication.findOne({ 
+        _id: id, 
+        $or: [
+          { userId },
+          { 'teamMembers.role': 'founder' }
+        ]
+      });
+
+      if (!application) {
+        return res.status(EHttpStatusCode.NOT_FOUND)
+          .json({ message: "Application not found or unauthorized" });
+      }
+
+      // Create new update object
+      const newUpdate = {
+        title,
+        content,
+        type,
+        ...(imageUrl && { imageUrl }),
+        createdAt: new Date()
+      };
+
+      // Add update
+      application.updates.push(newUpdate);
+      await application.save();
+
+      return res.status(EHttpStatusCode.SUCCESS).json({
+        message: "Update added successfully",
+        update: newUpdate
+      });
+    } catch (error) {
+      console.error("Add update error:", error);
+      return res.status(EHttpStatusCode.INTERNAL_SERVER)
+        .json({ message: "Failed to add update" });
+    }
+  },
+
+  // Add Investment
+  addInvestment: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+      const { 
+        investorName, 
+        amount, 
+        date, 
+        investorLogo, 
+        testimonial,
+        portfolio 
+      } = req.body;
+
+      // Find the application and check ownership
+      const application = await StartupApplication.findOne({ 
+        _id: id, 
+        $or: [
+          { userId },
+          { 'teamMembers.role': 'founder' }
+        ]
+      });
+
+      if (!application) {
+        return res.status(EHttpStatusCode.NOT_FOUND)
+          .json({ message: "Application not found or unauthorized" });
+      }
+
+      // Create new investment object
+      const newInvestment = {
+        investorName,
+        amount,
+        date: new Date(date),
+        ...(investorLogo && { investorLogo }),
+        ...(testimonial && { testimonial }),
+        ...(portfolio && { portfolio })
+      };
+
+      // Add investment
+      application.investments.push(newInvestment);
+
+      // Update fundraising if exists
+      if (application.fundraising) {
+        application.fundraising.raised += amount;
+        application.fundraising.backers += 1;
+      }
+
+      await application.save();
+
+      return res.status(EHttpStatusCode.SUCCESS).json({
+        message: "Investment added successfully",
+        investment: newInvestment
+      });
+    } catch (error) {
+      console.error("Add investment error:", error);
+      return res.status(EHttpStatusCode.INTERNAL_SERVER)
+        .json({ message: "Failed to add investment" });
+    }
+  },
     };
 
     export default applicationController;
